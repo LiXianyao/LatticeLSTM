@@ -20,7 +20,7 @@ class Data:
     def __init__(self): 
         self.MAX_SENTENCE_LENGTH = 250
         self.MAX_WORD_LENGTH = -1
-        self.number_normalized = True
+        self.number_normalized = True  #对文字中出现的数字进行归一化， 所有数字置零
         self.norm_word_emb = True
         self.norm_biword_emb = True
         self.norm_gaz_emb = False
@@ -149,15 +149,16 @@ class Data:
         self.fix_alphabet()
         print("Refresh label alphabet finished: old:%s -> new:%s"%(old_size, self.label_alphabet_size))
 
-
-
     def build_alphabet(self, input_file):
-        in_lines = open(input_file,'r').readlines()
+        """
+        逐行解析输入（序列标注数据）文件，取出文本字符，及字符的label
+        """
+        in_lines = open(input_file, 'r').readlines()
         for idx in xrange(len(in_lines)):
             line = in_lines[idx]
             if len(line) > 2:
-                pairs = line.strip().split()
-                word = pairs[0].decode('utf-8')
+                pairs = line.strip().split()     # 默认按空格分隔
+                word = pairs[0].decode('utf-8')  # 空格前面的是汉字
                 if self.number_normalized:
                     word = normalize_word(word)
                 label = pairs[-1]

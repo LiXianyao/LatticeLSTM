@@ -28,6 +28,15 @@ np.random.seed(seed_num)
 
 
 def data_initialization(data, gaz_file, train_file, dev_file, test_file):
+    """
+    加载vec文件和训练、测试数据
+    :param data:
+    :param gaz_file:
+    :param train_file:
+    :param dev_file:
+    :param test_file:
+    :return:
+    """
     data.build_alphabet(train_file)
     data.build_alphabet(dev_file)
     data.build_alphabet(test_file)
@@ -363,6 +372,7 @@ def load_model_decode(model_dir, data, name, gpu, seg=True):
 
 
 if __name__ == '__main__':
+    ##使用 argparse 设置并解读脚本的输入参数
     parser = argparse.ArgumentParser(description='Tuning with bi-directional LSTM-CRF')
     parser.add_argument('--embedding',  help='Embedding for words', default='None')
     parser.add_argument('--status', choices=['train', 'test', 'decode'], help='update algorithm', default='train')
@@ -426,6 +436,7 @@ if __name__ == '__main__':
         data.gaz_dropout = 0.5
         data.norm_gaz_emb = False
         data.HP_fix_gaz_emb = False
+        ##调用函数data_initialization()，加载vec文件和训练、测试数据
         data_initialization(data, gaz_file, train_file, dev_file, test_file)
         data.generate_instance_with_gaz(train_file,'train')
         data.generate_instance_with_gaz(dev_file,'dev')
