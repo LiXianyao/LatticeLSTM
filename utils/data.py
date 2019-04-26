@@ -35,7 +35,7 @@ class Data:
         self.label_alphabet = Alphabet('label', True)
         self.gaz_lower = False
         self.gaz = Gazetteer(self.gaz_lower)
-        self.gaz_alphabet = Alphabet('gaz')
+        self.gaz_alphabet = Alphabet('gaz')  # vec词典中，能被训练、dev和测试数据找到的词
         self.HP_fix_gaz_emb = False
         self.HP_use_gaz = True
 
@@ -159,17 +159,19 @@ class Data:
             if len(line) > 2:
                 pairs = line.strip().split()     # 默认按空格分隔
                 word = pairs[0].decode('utf-8')  # 空格前面的是汉字
-                if self.number_normalized:
+                if self.number_normalized:       #所有的数字都按0处理
                     word = normalize_word(word)
                 label = pairs[-1]
-                self.label_alphabet.add(label)
-                self.word_alphabet.add(word)
+                self.label_alphabet.add(label)   #
+                self.word_alphabet.add(word)     # label和单词存入字母表
+
+                #二元字符信息：当前字和紧跟的下一个字（若有）
                 if idx < len(in_lines) - 1 and len(in_lines[idx+1]) > 2:
                     biword = word + in_lines[idx+1].strip().split()[0].decode('utf-8')
                 else:
                     biword = word + NULLKEY
                 self.biword_alphabet.add(biword)
-                for char in word:
+                for char in word:  ##明明都只是字但还是按字符拆分？
                     self.char_alphabet.add(char)
         self.word_alphabet_size = self.word_alphabet.size()
         self.biword_alphabet_size = self.biword_alphabet.size()
@@ -177,6 +179,7 @@ class Data:
         self.label_alphabet_size = self.label_alphabet.size()
         startS = False
         startB = False
+        ##
         for label,_ in self.label_alphabet.iteritems():
             if "S-" in label.upper():
                 startS = True
@@ -191,6 +194,11 @@ class Data:
 
     def build_gaz_file(self, gaz_file):
         ## build gaz file,initial read gaz embedding file
+        """
+        读取文件并把word2vec的word存入self.gaz中。形式为(word, "one_source"
+        :param gaz_file:
+        :return:
+        """
         if gaz_file:
             fins = open(gaz_file, 'r').readlines()
             for fin in fins:
@@ -203,18 +211,24 @@ class Data:
 
 
     def build_gaz_alphabet(self, input_file):
-        in_lines = open(input_file,'r').readlines()
+        """
+
+        :param input_file:
+        :return:
+        """
+        in_lines = open(input_file, 'r').readlines()
         word_list = []
         for line in in_lines:
-            if len(line) > 3:
+            if len(line) > 3:  # 即只处理不是O的数据
                 word = line.split()[0].decode('utf-8')
                 if self.number_normalized:
                     word = normalize_word(word)
-                word_list.append(word)
-            else:
+                word_list.append(word)   # 将连续的非O字符存在一起
+            else:  # 遇到新的O后
                 w_length = len(word_list)
                 for idx in range(w_length):
-                    matched_entity = self.gaz.enumerateMatchList(word_list[idx:])
+                    # 用enumerateMatch来枚举查找当前串里的所有适配词（去尾
+                    matched_entity = self.gaz.enumerateMatchList(word_list[idx:])  # 查找前枚举了起点，查找时枚举终点
                     for entity in matched_entity:
                         # print entity, self.gaz.searchId(entity),self.gaz.searchType(entity)
                         self.gaz_alphabet.add(entity)

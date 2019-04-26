@@ -44,7 +44,7 @@ def data_initialization(data, gaz_file, train_file, dev_file, test_file):
     data.build_gaz_alphabet(train_file)
     data.build_gaz_alphabet(dev_file)
     data.build_gaz_alphabet(test_file)
-    data.fix_alphabet()
+    data.fix_alphabet()  # 关闭所有字母表
     return data
 
 
