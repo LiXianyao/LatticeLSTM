@@ -19,8 +19,8 @@ def normalize_word(word):
 
 def read_instance(input_file, word_alphabet, char_alphabet, label_alphabet, number_normalized,max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
     in_lines = open(input_file,'r').readlines()
-    instence_texts = []
-    instence_Ids = []
+    instance_texts = []
+    instance_Ids = []
     words = []
     chars = []
     labels = []
@@ -56,21 +56,21 @@ def read_instance(input_file, word_alphabet, char_alphabet, label_alphabet, numb
             char_Ids.append(char_Id)
         else:
             if (max_sent_length < 0) or (len(words) < max_sent_length):
-                instence_texts.append([words, chars, labels])
-                instence_Ids.append([word_Ids, char_Ids,label_Ids])
+                instance_texts.append([words, chars, labels])
+                instance_Ids.append([word_Ids, char_Ids,label_Ids])
             words = []
             chars = []
             labels = []
             word_Ids = []
             char_Ids = []
             label_Ids = []
-    return instence_texts, instence_Ids
+    return instance_texts, instance_Ids
 
 
 def read_seg_instance(input_file, word_alphabet, biword_alphabet, char_alphabet, label_alphabet, number_normalized, max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
     in_lines = open(input_file,'r').readlines()
-    instence_texts = []
-    instence_Ids = []
+    instance_texts = []
+    instance_Ids = []
     words = []
     biwords = []
     chars = []
@@ -115,8 +115,8 @@ def read_seg_instance(input_file, word_alphabet, biword_alphabet, char_alphabet,
             char_Ids.append(char_Id)
         else:
             if (max_sent_length < 0) or (len(words) < max_sent_length):
-                instence_texts.append([words, biwords, chars, labels])
-                instence_Ids.append([word_Ids, biword_Ids, char_Ids,label_Ids])
+                instance_texts.append([words, biwords, chars, labels])
+                instance_Ids.append([word_Ids, biword_Ids, char_Ids,label_Ids])
             words = []
             biwords = []
             chars = []
@@ -125,13 +125,13 @@ def read_seg_instance(input_file, word_alphabet, biword_alphabet, char_alphabet,
             biword_Ids = []
             char_Ids = []
             label_Ids = []
-    return instence_texts, instence_Ids
+    return instance_texts, instance_Ids
 
 
 def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char_alphabet, gaz_alphabet, label_alphabet, number_normalized, max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
     in_lines = open(input_file,'r').readlines()
-    instence_texts = []
-    instence_Ids = []
+    instance_texts = []
+    instance_Ids = []
     words = []
     biwords = []
     chars = []
@@ -152,12 +152,17 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
                 biword = word + in_lines[idx+1].strip().split()[0].decode('utf-8')
             else:
                 biword = word + NULLKEY
+            """
+            重新遍历训练、dev和测试数据文件，将其中的词转化为id映射，并保存在相应的结构
+            """
             biwords.append(biword)
             words.append(word)
             labels.append(label)
             word_Ids.append(word_alphabet.get_index(word))
             biword_Ids.append(biword_alphabet.get_index(biword))
             label_Ids.append(label_alphabet.get_index(label))
+
+            #词分字符，构造字符列表+id映射
             char_list = []
             char_Id = []
             for char in word:
@@ -175,8 +180,12 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
             chars.append(char_list)
             char_Ids.append(char_Id)
 
-        else:
+        else:  ##输入文件中， 句子与句子之间有一个空行
+            ## 句子长度在最长句子长度范围限制内 （超过的就不用了，因为不好截断【会影响标注】）
             if ((max_sent_length < 0) or (len(words) < max_sent_length)) and (len(words)>0):
+                """
+                再次枚举所有可能的词，并获取它们的索引
+                """
                 gazs = []
                 gaz_Ids = []
                 w_length = len(words)
@@ -185,6 +194,9 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
                 #     print w," ",
                 # print
                 for idx in range(w_length):
+                    ## 这里使用了这句话里的所有词，去头去尾枚举。也就是说包括了 O
+                    #但是取id的时候可能会取到unknown
+                    #也就是每次循环，会得到所有以当前字/词为开头的所有可能词 + 其id （失配的时候变成0）
                     matched_list = gaz.enumerateMatchList(words[idx:])
                     matched_length = [len(a) for a in matched_list]
                     # print idx,"----------"
@@ -199,11 +211,13 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
                     matched_Id  = [gaz_alphabet.get_index(entity) for entity in matched_list]
                     if matched_Id:
                         gaz_Ids.append([matched_Id, matched_length])
-                    else:
+                    else:  ## matched_list 最坏情况下是 []， 相应的,id也这么赋值
                         gaz_Ids.append([])
                     
-                instence_texts.append([words, biwords, chars, gazs, labels])
-                instence_Ids.append([word_Ids, biword_Ids, char_Ids, gaz_Ids, label_Ids])
+                instance_texts.append([words, biwords, chars, gazs, labels])
+                instance_Ids.append([word_Ids, biword_Ids, char_Ids, gaz_Ids, label_Ids])
+
+            ### 一句话处理完毕，它的所有词、二元词、字符等数据清空
             words = []
             biwords = []
             chars = []
@@ -214,13 +228,13 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
             label_Ids = []
             gazs = []
             gaz_Ids = []
-    return instence_texts, instence_Ids
+    return instance_texts, instance_Ids
 
 
 def read_instance_with_gaz_in_sentence(input_file, gaz, word_alphabet, biword_alphabet, char_alphabet, gaz_alphabet, label_alphabet, number_normalized, max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
     in_lines = open(input_file,'r').readlines()
-    instence_texts = []
-    instence_Ids = []
+    instance_texts = []
+    instance_Ids = []
     for idx in xrange(len(in_lines)):
         pair = in_lines[idx].strip().decode('utf-8').split()
         orig_words = list(pair[0])
@@ -271,9 +285,9 @@ def read_instance_with_gaz_in_sentence(input_file, gaz, word_alphabet, biword_al
                 gaz_Ids.append([matched_Id, matched_length])
             else:
                 gaz_Ids.append([])
-        instence_texts.append([words, biwords, chars, gazs, label])
-        instence_Ids.append([word_Ids, biword_Ids, char_Ids, gaz_Ids, label_Id])
-    return instence_texts, instence_Ids
+        instance_texts.append([words, biwords, chars, gazs, label])
+        instance_Ids.append([word_Ids, biword_Ids, char_Ids, gaz_Ids, label_Id])
+    return instance_texts, instance_Ids
 
 
 def build_pretrain_embedding(embedding_path, word_alphabet, embedd_dim=100, norm=True):    

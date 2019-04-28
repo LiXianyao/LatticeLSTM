@@ -29,7 +29,11 @@ np.random.seed(seed_num)
 
 def data_initialization(data, gaz_file, train_file, dev_file, test_file):
     """
-    加载vec文件和训练、测试数据
+    加载vec文件和训练、测试数据:
+    1、对标注数据，调用data.build_alphabet() 分别构建字母表
+    2、对vec文件，调用build_gaz_file()，构造word->id存储结构+Trie树
+    3、对输入文件中每个非O序列的全枚举，找出所有在vec中存在的词序列，构建一个训练、测试、dev共用的索引字母表
+    4、关闭所有字母表
     :param data:
     :param gaz_file:
     :param train_file:
@@ -436,8 +440,9 @@ if __name__ == '__main__':
         data.gaz_dropout = 0.5
         data.norm_gaz_emb = False
         data.HP_fix_gaz_emb = False
-        ##调用函数data_initialization()，加载vec文件和训练、测试数据
+        """调用函数data_initialization()，加载vec文件和训练、测试数据"""
         data_initialization(data, gaz_file, train_file, dev_file, test_file)
+        """重新遍历输入文件，使用预定义的字母表，按每句话一个list嵌套list，获得每句话里的所有词、二元词、字、label、latiice word以及相应的字母表id"""
         data.generate_instance_with_gaz(train_file,'train')
         data.generate_instance_with_gaz(dev_file,'dev')
         data.generate_instance_with_gaz(test_file,'test')

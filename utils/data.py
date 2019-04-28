@@ -212,7 +212,7 @@ class Data:
 
     def build_gaz_alphabet(self, input_file):
         """
-
+        对于每一段可以在vec中查找到的词序列，构建一个训练、测试、dev共用的索引字母表
         :param input_file:
         :return:
         """
@@ -272,6 +272,12 @@ class Data:
 
 
     def generate_instance_with_gaz(self, input_file, name):
+        """
+        重新遍历输入文件，使用预定义的字母表，按每句话一个list嵌套list，获得每句话里的所有词、二元词、字、label、latiice word以及相应的字母表id
+        :param input_file:
+        :param name:
+        :return:
+        """
         self.fix_alphabet()
         if name == "train":
             self.train_texts, self.train_Ids = read_instance_with_gaz(input_file, self.gaz, self.word_alphabet, self.biword_alphabet, self.char_alphabet, self.gaz_alphabet,  self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
