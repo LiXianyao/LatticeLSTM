@@ -326,7 +326,8 @@ def norm2one(vec):
     return vec/root_sum_square
 
 def load_pretrain_emb(embedding_path):
-    embedd_dim = -1
+    """  读取给定的embedding 文件 """
+    embedd_dim = -1  # 不限制embedding的长度，根据读到的文件绑定
     embedd_dict = dict()
     with open(embedding_path, 'r') as file:
         for line in file:
@@ -336,9 +337,9 @@ def load_pretrain_emb(embedding_path):
             tokens = line.split()
             if embedd_dim < 0:
                 embedd_dim = len(tokens) - 1
-            else:
+            else:  # 检查embedding长度是否满足设置，若不等则抛出异常
                 assert (embedd_dim + 1 == len(tokens))
-            embedd = np.empty([1, embedd_dim])
+            embedd = np.empty([1, embedd_dim])  # embedding是一个 1*dim的行向量，np.empty()创建出来的是随机数矩阵
             embedd[:] = tokens[1:]
             embedd_dict[tokens[0].decode('utf-8')] = embedd
     return embedd_dict, embedd_dim

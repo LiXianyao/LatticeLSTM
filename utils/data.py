@@ -243,7 +243,6 @@ class Data:
         self.label_alphabet.close() 
         self.gaz_alphabet.close()  
 
-
     def build_word_pretrain_emb(self, emb_path):
         print "build word pretrain emb..."
         self.pretrain_word_embedding, self.word_emb_dim = build_pretrain_embedding(emb_path, self.word_alphabet, self.word_emb_dim, self.norm_word_emb)

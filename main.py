@@ -446,6 +446,7 @@ if __name__ == '__main__':
         data.generate_instance_with_gaz(train_file,'train')
         data.generate_instance_with_gaz(dev_file,'dev')
         data.generate_instance_with_gaz(test_file,'test')
+        """  """
         data.build_word_pretrain_emb(char_emb)
         data.build_biword_pretrain_emb(bichar_emb)
         data.build_gaz_pretrain_emb(gaz_file)
