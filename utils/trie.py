@@ -54,7 +54,7 @@ class Trie:
         """
         matched = []
         ## while len(word) > 1 does not keep character itself, while word keed character itself
-        """
+        #"""
         if len(word) > 1:
             matched.extend(self.enum_search(word, space))
         """
@@ -62,7 +62,7 @@ class Trie:
             if self.search(word):
                 matched.append(space.join(word[:]))
             del word[-1]
-
+        """
         return matched
 
     def enum_search(self, word, space="_"):
@@ -81,6 +81,6 @@ class Trie:
                 return match_list
             else:  ## 存在适配，记录适配路径上的字母
                 matched_letter.append(letter)
-                if current.is_word:
+                if current.is_word and len(matched_letter) > 1:
                     match_list.append(space.join(matched_letter[:]))
         return match_list

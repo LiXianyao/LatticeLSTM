@@ -445,7 +445,7 @@ if __name__ == '__main__':
         init_start = time.time()
         data_initialization(data, gaz_file, train_file, dev_file, test_file)
         init_end = time.time()
-        init_cost = init_start - init_end
+        init_cost = init_end - init_start
         print("init data cost time: %.2fs"%(init_cost))
         """重新遍历输入文件，使用预定义的字母表，按每句话一个list嵌套list，获得每句话里的所有词、二元词、字、label、latiice word以及相应的字母表id"""
         data.generate_instance_with_gaz(train_file,'train')
