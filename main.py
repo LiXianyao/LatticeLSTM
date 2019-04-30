@@ -6,13 +6,12 @@
 
 import time
 import sys
-print(sys.getdefaultencoding())
 import argparse
 import random
 import copy
 import torch
 import gc
-#import cPickle as pickle
+import cPickle as pickle
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
@@ -113,14 +112,14 @@ def save_data_setting(data, save_file):
     new_data.test_Ids = []
     new_data.raw_Ids = []
     ## save data settings
-    #with open(save_file, 'w') as fp:
-        #pickle.dump(new_data, fp)
+    with open(save_file, 'w') as fp:
+        pickle.dump(new_data, fp)
     print("Data setting saved to file: ", save_file)
 
 
 def load_data_setting(save_file):
-    #with open(save_file, 'r') as fp:
-    #    data = pickle.load(fp)
+    with open(save_file, 'r') as fp:
+        data = pickle.load(fp)
     print("Data setting loaded from file: ", save_file)
     data.show_data_summary()
     return data
