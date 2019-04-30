@@ -54,9 +54,33 @@ class Trie:
         """
         matched = []
         ## while len(word) > 1 does not keep character itself, while word keed character itself
+        """
+        if len(word) > 1:
+            matched.extend(self.enum_search(word, space))
+        """
         while len(word) > 1:
             if self.search(word):
                 matched.append(space.join(word[:]))
             del word[-1]
+
         return matched
 
+    def enum_search(self, word, space="_"):
+        """
+        在字典树里查找输入词，不仅要适配，还要有词结束的标记
+        :param word:
+        :return:
+        """
+        current = self.root
+        match_list = []
+        matched_letter = []
+        for letter in word:
+            current = current.children.get(letter)
+
+            if current is None:  # 因为default dict的关系，如果没有这条分支，取到的值就是none
+                return match_list
+            else:  ## 存在适配，记录适配路径上的字母
+                matched_letter.append(letter)
+                if current.is_word:
+                    match_list.append(space.join(matched_letter[:]))
+        return match_list

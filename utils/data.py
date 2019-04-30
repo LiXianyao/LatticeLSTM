@@ -5,10 +5,10 @@
 # @Last Modified time: 2018-01-29 15:26:51
 import sys
 import numpy as np
-from alphabet import Alphabet
-from functions import *
-import cPickle as pickle
-from gazetteer import Gazetteer
+from utils.alphabet import Alphabet
+from utils.functions import *
+from utils.gazetteer import Gazetteer
+import time
 
 
 START = "</s>"
@@ -18,7 +18,7 @@ NULLKEY = "-null-"
 
 class Data:
     def __init__(self): 
-        self.MAX_SENTENCE_LENGTH = 250
+        self.MAX_SENTENCE_LENGTH = 350
         self.MAX_WORD_LENGTH = -1
         self.number_normalized = True  #对文字中出现的数字进行归一化， 所有数字置零
         self.norm_word_emb = True
@@ -153,6 +153,7 @@ class Data:
         """
         逐行解析输入（序列标注数据）文件，取出文本字符，及字符的label
         """
+        build_start = time.time()
         in_lines = open(input_file, 'r').readlines()
         for idx in xrange(len(in_lines)):
             line = in_lines[idx]
@@ -190,6 +191,8 @@ class Data:
                 self.tagScheme = "BMES"
             else:
                 self.tagScheme = "BIO"
+        build_end = time.time()
+        print("build alphabet for file %s cost time: %.2fs" % (input_file, build_start - build_end))
 
 
     def build_gaz_file(self, gaz_file):
@@ -199,15 +202,18 @@ class Data:
         :param gaz_file:
         :return:
         """
+        build_start = time.time()
         if gaz_file:
             fins = open(gaz_file, 'r').readlines()
             for fin in fins:
                 fin = fin.strip().split()[0].decode('utf-8')
                 if fin:
                     self.gaz.insert(fin, "one_source")
-            print "Load gaz file: ", gaz_file, " total size:", self.gaz.size()
+            print("Load gaz file: ", gaz_file, " total size:", self.gaz.size())
         else:
-            print "Gaz file is None, load nothing"
+            print("Gaz file is None, load nothing")
+        build_end = time.time()
+        print("build alphabet for gaz file %s cost time: %.2fs" % (gaz_file, build_start - build_end))
 
 
     def build_gaz_alphabet(self, input_file):
@@ -216,15 +222,16 @@ class Data:
         :param input_file:
         :return:
         """
+        build_start = time.time()
         in_lines = open(input_file, 'r').readlines()
         word_list = []
         for line in in_lines:
-            if len(line) > 3:  # 即只处理不是O的数据
-                word = line.split()[0].decode('utf-8')
+            if len(line) > 2:  # 将一句话的所有词整合在一起
+                word = line.split()[0].strip().decode('utf-8')
                 if self.number_normalized:
                     word = normalize_word(word)
                 word_list.append(word)   # 将连续的非O字符存在一起
-            else:  # 遇到新的O后
+            else:  # 一句话结束
                 w_length = len(word_list)
                 for idx in range(w_length):
                     # 用enumerateMatch来枚举查找当前串里的所有适配词（去尾
@@ -233,8 +240,9 @@ class Data:
                         # print entity, self.gaz.searchId(entity),self.gaz.searchType(entity)
                         self.gaz_alphabet.add(entity)
                 word_list = []
-        print "gaz alphabet size:", self.gaz_alphabet.size()
-
+        print("gaz alphabet size:", self.gaz_alphabet.size())
+        build_end = time.time()
+        print("build alphabet for gaz file %s cost time: %.2fs" % (input_file, build_start - build_end))
 
     def fix_alphabet(self):
         self.word_alphabet.close()
@@ -244,15 +252,15 @@ class Data:
         self.gaz_alphabet.close()  
 
     def build_word_pretrain_emb(self, emb_path):
-        print "build word pretrain emb..."
+        print("build word pretrain emb...")
         self.pretrain_word_embedding, self.word_emb_dim = build_pretrain_embedding(emb_path, self.word_alphabet, self.word_emb_dim, self.norm_word_emb)
 
     def build_biword_pretrain_emb(self, emb_path):
-        print "build biword pretrain emb..."
+        print("build biword pretrain emb...")
         self.pretrain_biword_embedding, self.biword_emb_dim = build_pretrain_embedding(emb_path, self.biword_alphabet, self.biword_emb_dim, self.norm_biword_emb)
 
     def build_gaz_pretrain_emb(self, emb_path):
-        print "build gaz pretrain emb..."
+        print("build gaz pretrain emb...")
         self.pretrain_gaz_embedding, self.gaz_emb_dim = build_pretrain_embedding(emb_path, self.gaz_alphabet,  self.gaz_emb_dim, self.norm_gaz_emb)
 
 

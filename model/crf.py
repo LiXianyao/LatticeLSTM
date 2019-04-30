@@ -30,7 +30,7 @@ class CRF(nn.Module):
 
     def __init__(self, tagset_size, gpu):
         super(CRF, self).__init__()
-        print "build batched crf..."
+        print("build batched crf...")
         self.gpu = gpu
         # Matrix of transition parameters.  Entry i,j is the score of transitioning *to* i *from* j.
         self.average_batch = False
@@ -174,10 +174,10 @@ class CRF(nn.Module):
         insert_last = pointer.contiguous().view(batch_size,1,1).expand(batch_size,1, tag_size)
         back_points = back_points.transpose(1,0).contiguous()
         ## move the end ids(expand to tag_size) to the corresponding position of back_points to replace the 0 values
-        # print "lp:",last_position
-        # print "il:",insert_last
+        # print("lp:",last_position
+        # print("il:",insert_last
         back_points.scatter_(1, last_position, insert_last)
-        # print "bp:",back_points
+        # print("bp:",back_points
         # exit(0)
         back_points = back_points.transpose(1,0).contiguous()
         ## decode from the end, padded position ids are 0, which will be filtered if following evaluation
@@ -255,7 +255,7 @@ class CRF(nn.Module):
         batch_size = feats.size(0)
         forward_score, scores = self._calculate_PZ(feats, mask)
         gold_score = self._score_sentence(scores, mask, tags)
-        # print "batch, f:", forward_score.data[0], " g:", gold_score.data[0], " dis:", forward_score.data[0] - gold_score.data[0]
+        # print("batch, f:", forward_score.data[0], " g:", gold_score.data[0], " dis:", forward_score.data[0] - gold_score.data[0]
         # exit(0)
         if self.average_batch:
             return (forward_score - gold_score)/batch_size

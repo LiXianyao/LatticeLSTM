@@ -6,12 +6,13 @@
 
 import time
 import sys
+print(sys.getdefaultencoding())
 import argparse
 import random
 import copy
 import torch
 import gc
-import cPickle as pickle
+#import cPickle as pickle
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
@@ -91,8 +92,8 @@ def recover_label(pred_variable, gold_variable, mask_variable, label_alphabet, w
     for idx in range(batch_size):
         pred = [label_alphabet.get_instance(pred_tag[idx][idy]) for idy in range(seq_len) if mask[idx][idy] != 0]
         gold = [label_alphabet.get_instance(gold_tag[idx][idy]) for idy in range(seq_len) if mask[idx][idy] != 0]
-        # print "p:",pred, pred_tag.tolist()
-        # print "g:", gold, gold_tag.tolist()
+        # print("p:",pred, pred_tag.tolist()
+        # print("g:", gold, gold_tag.tolist()
         assert(len(pred)==len(gold))
         pred_label.append(pred)
         gold_label.append(gold)
@@ -112,21 +113,21 @@ def save_data_setting(data, save_file):
     new_data.test_Ids = []
     new_data.raw_Ids = []
     ## save data settings
-    with open(save_file, 'w') as fp:
-        pickle.dump(new_data, fp)
-    print "Data setting saved to file: ", save_file
+    #with open(save_file, 'w') as fp:
+        #pickle.dump(new_data, fp)
+    print("Data setting saved to file: ", save_file)
 
 
 def load_data_setting(save_file):
-    with open(save_file, 'r') as fp:
-        data = pickle.load(fp)
-    print "Data setting loaded from file: ", save_file
+    #with open(save_file, 'r') as fp:
+    #    data = pickle.load(fp)
+    print("Data setting loaded from file: ", save_file)
     data.show_data_summary()
     return data
 
 def lr_decay(optimizer, epoch, decay_rate, init_lr):
     lr = init_lr * ((1-decay_rate)**epoch)
-    print " Learning rate is setted as:", lr
+    print(" Learning rate is setted as:", lr)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
     return optimizer
@@ -143,7 +144,7 @@ def evaluate(data, model, name):
     elif name == 'raw':
         instances = data.raw_Ids
     else:
-        print "Error: wrong evaluate name,", name
+        print("Error: wrong evaluate name,", name)
     right_token = 0
     whole_token = 0
     pred_results = []
@@ -164,7 +165,7 @@ def evaluate(data, model, name):
             continue
         gaz_list,batch_word, batch_biword, batch_wordlen, batch_wordrecover, batch_char, batch_charlen, batch_charrecover, batch_label, mask  = batchify_with_label(instance, data.HP_gpu, True)
         tag_seq = model(gaz_list,batch_word, batch_biword, batch_wordlen, batch_char, batch_charlen, batch_charrecover, mask)
-        # print "tag:",tag_seq
+        # print("tag:",tag_seq
         pred_label, gold_label = recover_label(tag_seq, batch_label, mask, data.label_alphabet, batch_wordrecover)
         pred_results += pred_label
         gold_results += gold_label
@@ -247,12 +248,12 @@ def batchify_with_label(input_batch_list, gpu, volatile_flag=False):
 
 
 def train(data, save_model_dir, seg=True):
-    print "Training model..."
+    print("Training model...")
     data.show_data_summary()
     save_data_name = save_model_dir +".dset"
     save_data_setting(data, save_data_name)
     model = SeqModel(data)
-    print "finished built model."
+    print("finished built model.")
     loss_function = nn.NLLLoss()
     parameters = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = optim.SGD(parameters, lr=data.HP_lr, momentum=data.HP_momentum)
@@ -288,7 +289,7 @@ def train(data, save_model_dir, seg=True):
             if not instance:
                 continue
             gaz_list,  batch_word, batch_biword, batch_wordlen, batch_wordrecover, batch_char, batch_charlen, batch_charrecover, batch_label, mask  = batchify_with_label(instance, data.HP_gpu)
-            # print "gaz_list:",gaz_list
+            # print("gaz_list:",gaz_list
             # exit(0)
             instance_count += 1
             loss, tag_seq = model.neg_log_likelihood_loss(gaz_list, batch_word, batch_biword, batch_wordlen, batch_char, batch_charlen, batch_charrecover, batch_label, mask)
@@ -332,9 +333,9 @@ def train(data, save_model_dir, seg=True):
 
         if current_score > best_dev:
             if seg:
-                print "Exceed previous best f score:", best_dev
+                print("Exceed previous best f score:", best_dev)
             else:
-                print "Exceed previous best acc score:", best_dev
+                print("Exceed previous best acc score:", best_dev)
             model_name = save_model_dir +'.'+ str(idx) + ".model"
             torch.save(model.state_dict(), model_name)
             best_dev = current_score 
@@ -351,7 +352,7 @@ def train(data, save_model_dir, seg=True):
 
 def load_model_decode(model_dir, data, name, gpu, seg=True):
     data.HP_gpu = gpu
-    print "Load Model from file: ", model_dir
+    print("Load Model from file: ", model_dir)
     model = SeqModel(data)
     ## load model need consider if the model trained in GPU and load in CPU, or vice versa
     # if not gpu:
@@ -415,20 +416,20 @@ if __name__ == '__main__':
     # char_emb = None
     #bichar_emb = None
 
-    print "CuDNN:", torch.backends.cudnn.enabled
+    print("CuDNN:", torch.backends.cudnn.enabled)
     # gpu = False
-    print "GPU available:", gpu
-    print "Status:", status
-    print "Seg: ", seg
-    print "Train file:", train_file
-    print "Dev file:", dev_file
-    print "Test file:", test_file
-    print "Raw file:", raw_file
-    print "Char emb:", char_emb
-    print "Bichar emb:", bichar_emb
-    print "Gaz file:",gaz_file
+    print("GPU available:", gpu)
+    print("Status:", status)
+    print("Seg: ", seg)
+    print("Train file:", train_file)
+    print("Dev file:", dev_file)
+    print("Test file:", test_file)
+    print("Raw file:", raw_file)
+    print("Char emb:", char_emb)
+    print("Bichar emb:", bichar_emb)
+    print("Gaz file:",gaz_file)
     if status == 'train':
-        print "Model saved to:", save_model_dir
+        print("Model saved to:", save_model_dir)
     sys.stdout.flush()
     
     if status == 'train':
@@ -441,11 +442,19 @@ if __name__ == '__main__':
         data.norm_gaz_emb = False
         data.HP_fix_gaz_emb = False
         """调用函数data_initialization()，加载vec文件和训练、测试数据"""
+        init_start = time.time()
         data_initialization(data, gaz_file, train_file, dev_file, test_file)
+        init_end = time.time()
+        init_cost = init_start - init_end
+        print("init data cost time: %.2fs"%(init_cost))
         """重新遍历输入文件，使用预定义的字母表，按每句话一个list嵌套list，获得每句话里的所有词、二元词、字、label、latiice word以及相应的字母表id"""
         data.generate_instance_with_gaz(train_file,'train')
         data.generate_instance_with_gaz(dev_file,'dev')
         data.generate_instance_with_gaz(test_file,'test')
+        gaz_end = time.time()
+        gaz_cost = gaz_end - init_end
+        print("gaz data cost time: %.2fs" % (gaz_cost))
+        exit(0)
         """  """
         data.build_word_pretrain_emb(char_emb)
         data.build_biword_pretrain_emb(bichar_emb)
@@ -463,7 +472,7 @@ if __name__ == '__main__':
         decode_results = load_model_decode(model_dir, data, 'raw', gpu, seg)
         data.write_decoded_results(output_file, decode_results, 'raw')
     else:
-        print "Invalid argument! Please use valid arguments! (train/test/decode)"
+        print("Invalid argument! Please use valid arguments! (train/test/decode)")
 
 
 

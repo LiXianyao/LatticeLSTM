@@ -5,7 +5,7 @@
 # @Last Modified time: 2018-05-12 22:09:37
 import sys
 import numpy as np
-from alphabet import Alphabet
+from utils.alphabet import Alphabet
 NULLKEY = "-null-"
 def normalize_word(word):
     new_word = ""
@@ -200,7 +200,7 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
                     matched_list = gaz.enumerateMatchList(words[idx:])
                     matched_length = [len(a) for a in matched_list]
                     # print idx,"----------"
-                    # print "forward...feed:","".join(words[idx:])
+                    # print("forward...feed:","".join(words[idx:])
                     # for a in matched_list:
                     #     print a,len(a)," ",
                     # print
@@ -274,7 +274,7 @@ def read_instance_with_gaz_in_sentence(input_file, gaz, word_alphabet, biword_al
             matched_list = gaz.enumerateMatchList(words[idx:])
             matched_length = [len(a) for a in matched_list]
             # print idx,"----------"
-            # print "forward...feed:","".join(words[idx:])
+            # print("forward...feed:","".join(words[idx:])
             # for a in matched_list:
             #     print a,len(a)," ",
             # print
@@ -346,5 +346,5 @@ def load_pretrain_emb(embedding_path):
 
 if __name__ == '__main__':
     a = np.arange(9.0)
-    print a
-    print norm2one(a)
+    print (a)
+    print (norm2one(a))
