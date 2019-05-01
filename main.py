@@ -205,7 +205,7 @@ def batchify_with_label(input_batch_list, gpu, volatile_flag=False):
         word_seq_tensor[idx, :seqlen] = torch.LongTensor(seq)
         biword_seq_tensor[idx, :seqlen] = torch.LongTensor(biseq)
         label_seq_tensor[idx, :seqlen] = torch.LongTensor(label)
-        mask[idx, :seqlen] = torch.Tensor([1]*seqlen)
+        mask[idx, :seqlen] = torch.Tensor(torch.ones(seqlen))
     word_seq_lengths, word_perm_idx = word_seq_lengths.sort(0, descending=True)
     word_seq_tensor = word_seq_tensor[word_perm_idx]
     biword_seq_tensor = biword_seq_tensor[word_perm_idx]
@@ -453,11 +453,11 @@ if __name__ == '__main__':
         gaz_end = time.time()
         gaz_cost = gaz_end - init_end
         print("gaz data cost time: %.2fs" % (gaz_cost))
-        exit(0)
-        """  """
+        """ 为字、二元字、Lattice 词获取它们的embedding """
         data.build_word_pretrain_emb(char_emb)
         data.build_biword_pretrain_emb(bichar_emb)
         data.build_gaz_pretrain_emb(gaz_file)
+        exit(0)
         train(data, save_model_dir, seg)
     elif status == 'test':      
         data = load_data_setting(dset_dir)
