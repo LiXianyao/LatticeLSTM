@@ -1,8 +1,8 @@
-python main.py --status train \
+python -u main.py --status train \
 		--train ./data/demo.train.char \
 		--dev ./data/demo.dev.char \
 		--test ./data/demo.test.char \
-		--savemodel ./data/demo \
+		--savemodel ./save_model/demo \
 
 
 # python main.py --status decode \
