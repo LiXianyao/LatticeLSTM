@@ -30,7 +30,7 @@ def read_instance(input_file, word_alphabet, char_alphabet, label_alphabet, numb
     for line in in_lines:
         if len(line) > 2:
             pairs = line.strip().split()
-            word = pairs[0].decode('utf-8')
+            word = pairs[0].lower().decode('utf-8')
             if number_normalized:
                 word = normalize_word(word)
             label = pairs[-1]
@@ -83,13 +83,13 @@ def read_seg_instance(input_file, word_alphabet, biword_alphabet, char_alphabet,
         line = in_lines[idx]
         if len(line) > 2:
             pairs = line.strip().split()
-            word = pairs[0].decode('utf-8')
+            word = pairs[0].lower().decode('utf-8')
             if number_normalized:
                 word = normalize_word(word)
             label = pairs[-1]
             words.append(word)
             if idx < len(in_lines) -1 and len(in_lines[idx+1]) > 2:
-                biword = word + in_lines[idx+1].strip().split()[0].decode('utf-8')
+                biword = word + in_lines[idx+1].strip().lower().split()[0].decode('utf-8')
             else:
                 biword = word + NULLKEY
             biwords.append(biword)
@@ -129,6 +129,10 @@ def read_seg_instance(input_file, word_alphabet, biword_alphabet, char_alphabet,
 
 
 def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char_alphabet, gaz_alphabet, label_alphabet, number_normalized, max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
+    """
+    遍历输入文件，抽取其中的词和标签，使用构造好的字母表获取对应的id下标，并封装到结构中
+    :return:
+    """
     in_lines = open(input_file,'r').readlines()
     instance_texts = []
     instance_Ids = []
@@ -144,12 +148,12 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
         line = in_lines[idx]
         if len(line) > 2:
             pairs = line.strip().split()
-            word = pairs[0].decode('utf-8')
+            word = pairs[0].lower().decode('utf-8')
             if number_normalized:
                 word = normalize_word(word)
             label = pairs[-1]
             if idx < len(in_lines) -1 and len(in_lines[idx+1]) > 2:
-                biword = word + in_lines[idx+1].strip().split()[0].decode('utf-8')
+                biword = word + in_lines[idx+1].strip().lower().split()[0].decode('utf-8')
             else:
                 biword = word + NULLKEY
             """
@@ -237,7 +241,7 @@ def read_instance_with_gaz_in_sentence(input_file, gaz, word_alphabet, biword_al
     instance_Ids = []
     for idx in xrange(len(in_lines)):
         pair = in_lines[idx].strip().decode('utf-8').split()
-        orig_words = list(pair[0])
+        orig_words = list(pair[0].lower())
         
         if (max_sent_length > 0) and (len(orig_words) > max_sent_length):
             continue
@@ -290,23 +294,33 @@ def read_instance_with_gaz_in_sentence(input_file, gaz, word_alphabet, biword_al
     return instance_texts, instance_Ids
 
 
-def build_pretrain_embedding(embedding_path, word_alphabet, embedd_dim=100, norm=True):    
+def build_pretrain_embedding(embedding_path, word_alphabet, embedd_dim=100, norm=True):
+    """
+    使用给定的embedding文件 为给定的字符表中的所有词取出对应的embedding
+        biword时， embedding path 为none，使用对均匀分布抽样来随机初始化embedding
+        统计命中的词和失配的词
+    :param embedding_path:
+    :param word_alphabet:
+    :param embedd_dim:
+    :param norm:
+    :return:
+    """
     embedd_dict = dict()
     if embedding_path != None:
         embedd_dict, embedd_dim = load_pretrain_emb(embedding_path)
     scale = np.sqrt(3.0 / embedd_dim)
-    pretrain_emb = np.empty([word_alphabet.size(), embedd_dim])
+    pretrain_emb = np.empty([word_alphabet.size(), embedd_dim]) ## 为字母表里每个元素存一个embedding
     perfect_match = 0
     case_match = 0
     not_match = 0
     for word, index in word_alphabet.iteritems():
-        if word in embedd_dict:
+        if word in embedd_dict:  ## 词在 embedding中能找到
             if norm:
                 pretrain_emb[index,:] = norm2one(embedd_dict[word])
             else:
                 pretrain_emb[index,:] = embedd_dict[word]
             perfect_match += 1
-        elif word.lower() in embedd_dict:
+        elif word.lower() in embedd_dict: ## 词被小写化后可以查到 （但是处理embeddding的地方没有这么做呢）
             if norm:
                 pretrain_emb[index,:] = norm2one(embedd_dict[word.lower()])
             else:
@@ -316,17 +330,25 @@ def build_pretrain_embedding(embedding_path, word_alphabet, embedd_dim=100, norm
             pretrain_emb[index,:] = np.random.uniform(-scale, scale, [1, embedd_dim])
             not_match += 1
     pretrained_size = len(embedd_dict)
-    print("Embedding:\n     pretrain word:%s, prefect match:%s, case_match:%s, oov:%s, oov%%:%s"%(pretrained_size, perfect_match, case_match, not_match, (not_match+0.)/word_alphabet.size()))
+    print("Embedding:\n     pretrain word:%s, prefect match:%s, case_match:%s, oov:%s, oov%%:%s"%
+          (pretrained_size, perfect_match, case_match, not_match, (not_match+0.) / word_alphabet.size() * 100.))
     return pretrain_emb, embedd_dim
 
 
        
 def norm2one(vec):
+    """
+    对输入的词向量做归一化
+    :param vec: 词向量的一行
+    :return:
+    """
     root_sum_square = np.sqrt(np.sum(np.square(vec)))
     return vec/root_sum_square
 
 def load_pretrain_emb(embedding_path):
-    """  读取给定的embedding 文件 """
+    """  读取给定的embedding 文件
+    根据读取到的长度设置embedding的维度，并建立dict (word-> embedding)
+    """
     embedd_dim = -1  # 不限制embedding的长度，根据读到的文件绑定
     embedd_dict = dict()
     with open(embedding_path, 'r') as file:
@@ -341,7 +363,7 @@ def load_pretrain_emb(embedding_path):
                 assert (embedd_dim + 1 == len(tokens))
             embedd = np.empty([1, embedd_dim])  # embedding是一个 1*dim的行向量，np.empty()创建出来的是随机数矩阵
             embedd[:] = tokens[1:]
-            embedd_dict[tokens[0].decode('utf-8')] = embedd
+            embedd_dict[tokens[0].lower().decode('utf-8')] = embedd
     return embedd_dict, embedd_dim
 
 if __name__ == '__main__':

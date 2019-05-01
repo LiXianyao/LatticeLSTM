@@ -159,7 +159,7 @@ class Data:
             line = in_lines[idx]
             if len(line) > 2:
                 pairs = line.strip().split()     # 默认按空格分隔
-                word = pairs[0].decode('utf-8')  # 空格前面的是汉字
+                word = pairs[0].lower().decode('utf-8')  # 空格前面的是汉字
                 if self.number_normalized:       #所有的数字都按0处理
                     word = normalize_word(word)
                 label = pairs[-1]
@@ -168,7 +168,7 @@ class Data:
 
                 #二元字符信息：当前字和紧跟的下一个字（若有）
                 if idx < len(in_lines) - 1 and len(in_lines[idx+1]) > 2:
-                    biword = word + in_lines[idx+1].strip().split()[0].decode('utf-8')
+                    biword = word + in_lines[idx+1].strip().split()[0].lower().decode('utf-8')
                 else:
                     biword = word + NULLKEY
                 self.biword_alphabet.add(biword)
@@ -192,7 +192,7 @@ class Data:
             else:
                 self.tagScheme = "BIO"
         build_end = time.time()
-        print("build alphabet for file %s cost time: %.2fs" % (input_file, build_start - build_end))
+        print("build alphabet for file %s cost time: %.2fs" % (input_file, build_end - build_start))
 
 
     def build_gaz_file(self, gaz_file):
@@ -206,14 +206,14 @@ class Data:
         if gaz_file:
             fins = open(gaz_file, 'r').readlines()
             for fin in fins:
-                fin = fin.strip().split()[0].decode('utf-8')
+                fin = fin.strip().split()[0].lower().decode('utf-8')
                 if fin:
                     self.gaz.insert(fin, "one_source")
             print("Load gaz file: ", gaz_file, " total size:", self.gaz.size())
         else:
             print("Gaz file is None, load nothing")
         build_end = time.time()
-        print("build alphabet for gaz file %s cost time: %.2fs" % (gaz_file, build_start - build_end))
+        print("build alphabet for gaz file %s cost time: %.2fs" % (gaz_file, build_end - build_start))
 
 
     def build_gaz_alphabet(self, input_file):
@@ -227,7 +227,7 @@ class Data:
         word_list = []
         for line in in_lines:
             if len(line) > 2:  # 将一句话的所有词整合在一起
-                word = line.split()[0].strip().decode('utf-8')
+                word = line.split()[0].strip().lower().decode('utf-8')
                 if self.number_normalized:
                     word = normalize_word(word)
                 word_list.append(word)   # 将连续的非O字符存在一起
@@ -242,7 +242,7 @@ class Data:
                 word_list = []
         print("gaz alphabet size:", self.gaz_alphabet.size())
         build_end = time.time()
-        print("build alphabet for gaz file %s cost time: %.2fs" % (input_file, build_start - build_end))
+        print("build alphabet for gaz file %s cost time: %.2fs" % (input_file, build_end - build_start))
 
     def fix_alphabet(self):
         self.word_alphabet.close()
