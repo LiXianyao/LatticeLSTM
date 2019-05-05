@@ -51,15 +51,15 @@ class Data:
         self.dev_Ids = []
         self.test_Ids = []
         self.raw_Ids = []
-        self.use_bigram = True
-        self.word_emb_dim = 50
-        self.biword_emb_dim = 50
-        self.char_emb_dim = 30
-        self.gaz_emb_dim = 50
+        self.use_bigram = True # train: False
+        self.word_emb_dim = 50 # 解析文件时修改
+        self.biword_emb_dim = 50 # 解析文件时修改 (就没有）
+        self.char_emb_dim = 30 # 解析文件时修改 （实际里把word当作了char，只提了word）
+        self.gaz_emb_dim = 50 # 解析文件时修改
         self.gaz_dropout = 0.5
-        self.pretrain_word_embedding = None
-        self.pretrain_biword_embedding = None
-        self.pretrain_gaz_embedding = None
+        self.pretrain_word_embedding = None # 解析文件时修改
+        self.pretrain_biword_embedding = None # 解析文件时修改
+        self.pretrain_gaz_embedding = None # 解析文件时修改
         self.label_size = 0
         self.word_alphabet_size = 0
         self.biword_alphabet_size = 0
@@ -67,9 +67,9 @@ class Data:
         self.label_alphabet_size = 0
         ### hyperparameters
         self.HP_iteration = 100
-        self.HP_batch_size = 10
+        self.HP_batch_size = 10 # train: 1
         self.HP_char_hidden_dim = 50
-        self.HP_hidden_dim = 200
+        self.HP_hidden_dim = 200 # lstm隐藏层维度
         self.HP_dropout = 0.5
         self.HP_lstm_layer = 1
         self.HP_bilstm = True
