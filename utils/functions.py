@@ -214,7 +214,7 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
                     gazs.append(matched_list)
                     matched_Id  = [gaz_alphabet.get_index(entity) for entity in matched_list]
                     if matched_Id:
-                        gaz_Ids.append([matched_Id, matched_length])
+                        gaz_Ids.append([matched_Id, matched_length]) # matched_id 和matched_length都是list. 也就是说每个词对应一个[matched_Id, matched_length]组合
                     else:  ## matched_list 最坏情况下是 []， 相应的,id也这么赋值
                         gaz_Ids.append([])
                     
