@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Implementation of batch-normalized LSTM."""
 import torch
 from torch import nn
@@ -82,11 +83,11 @@ class MultiInputLSTMCell(nn.Module):
         self.hidden_size = hidden_size
         self.use_bias = use_bias
         self.weight_ih = nn.Parameter(
-            torch.FloatTensor(input_size, 3 * hidden_size))
+            torch.FloatTensor(input_size, 3 * hidden_size)) # 3个门限对输入的权重矩阵
         self.weight_hh = nn.Parameter(
-            torch.FloatTensor(hidden_size, 3 * hidden_size))
+            torch.FloatTensor(hidden_size, 3 * hidden_size)) # 3个门限对hi-1的权重矩阵
         self.alpha_weight_ih = nn.Parameter(
-            torch.FloatTensor(input_size, hidden_size))
+            torch.FloatTensor(input_size, hidden_size)) # tanh 的权重矩阵？
         self.alpha_weight_hh = nn.Parameter(
             torch.FloatTensor(hidden_size, hidden_size))
         if use_bias:
@@ -95,7 +96,7 @@ class MultiInputLSTMCell(nn.Module):
         else:
             self.register_parameter('bias', None)
             self.register_parameter('alpha_bias', None)
-        self.reset_parameters()
+        self.reset_parameters() # 按照论文所述？的方式对参数进行初始化
 
     def reset_parameters(self):
         """
@@ -174,23 +175,29 @@ class LatticeLSTM(nn.Module):
     """A module that runs multiple steps of LSTM."""
 
     def __init__(self, input_dim, hidden_dim, word_drop, word_alphabet_size, word_emb_dim, pretrain_word_emb=None, left2right=True, fix_word_emb=True, gpu=True,  use_bias = True):
+        """
+        	输入参数中的所有word均指代 gaz_word
+            实际代码里，训练时，gaz_embedding的fix设置为fix_word_emb=False
+        """
         super(LatticeLSTM, self).__init__()
         skip_direction = "forward" if left2right else "backward"
         print("build LatticeLSTM... ", skip_direction, ", Fix emb:", fix_word_emb, " gaz drop:", word_drop)
         self.gpu = gpu
         self.hidden_dim = hidden_dim
+        """ 设置gaz词的embedding层 """
         self.word_emb = nn.Embedding(word_alphabet_size, word_emb_dim)
         if pretrain_word_emb is not None:
             print("load pretrain word emb...", pretrain_word_emb.shape)
             self.word_emb.weight.data.copy_(torch.from_numpy(pretrain_word_emb))
-
         else:
             self.word_emb.weight.data.copy_(torch.from_numpy(self.random_embedding(word_alphabet_size, word_emb_dim)))
-        if fix_word_emb:
+        if fix_word_emb: # 若为True, gaz词向量不再训练。实际为False
             self.word_emb.weight.requires_grad = False
-        
+
+        """ 设置embedding层的dropout """
         self.word_dropout = nn.Dropout(word_drop)
 
+        """ 设置网络层：普通LSTM层 + Lattice词层 """
         self.rnn = MultiInputLSTMCell(input_dim, hidden_dim)
         self.word_rnn = WordLSTMCell(word_emb_dim, hidden_dim)
         self.left2right = left2right
@@ -209,22 +216,22 @@ class LatticeLSTM(nn.Module):
 
     def forward(self, input, skip_input_list, hidden=None):
         """
-            input: variable (batch, seq_len), batch = 1
-            skip_input_list: [skip_input, volatile_flag]
+            input  (word embeddings ): variable (batch, seq_len), batch = 1
+            skip_input_list (gaz_list) : [skip_input, volatile_flag] (batch, seq_len, 2 or 0)
             skip_input: three dimension list, with length is seq_len. Each element is a list of matched word id and its length. 
                         example: [[], [[25,13],[2,3]]] 25/13 is word id, 2,3 is word length . 
         """
-        volatile_flag = skip_input_list[1]
-        skip_input = skip_input_list[0]
-        if not self.left2right:
+        volatile_flag = skip_input_list[1] # 这个flag是不能多句话的原因
+        skip_input = skip_input_list[0] # (seq_len, 2 or 0, variable)
+        if not self.left2right: # 如果是右->左的反向网络
             skip_input = convert_forward_gaz_to_backward(skip_input)
-        input = input.transpose(1,0)
+        input = input.transpose(1,0) # embedding矩阵转置
         seq_len = input.size(0)
         batch_size = input.size(1)
         assert(batch_size == 1)
         hidden_out = []
         memory_out = []
-        if hidden:
+        if hidden: # 有传入上一层的LSTM结果
             (hx,cx)= hidden
         else:
             hx = autograd.Variable(torch.zeros(batch_size, self.hidden_dim))
@@ -234,13 +241,15 @@ class LatticeLSTM(nn.Module):
                 cx = cx.cuda()
         
         id_list = range(seq_len)
-        if not self.left2right:
+        if not self.left2right: # 对word 序列，只是逆转seq_len即可
             id_list = list(reversed(id_list))
         input_c_list = init_list_of_objects(seq_len)
         for t in id_list:
+            """ 首先经由普通lstm得到一份输出 """
             (hx,cx) = self.rnn(input[t], input_c_list[t], (hx,cx))
             hidden_out.append(hx)
             memory_out.append(cx)
+            """ 若当前字存在gaz word，则处理所有gaz词 """
             if skip_input[t]:
                 matched_num = len(skip_input[t][0])
                 word_var = autograd.Variable(torch.LongTensor(skip_input[t][0]),volatile =  volatile_flag)
@@ -269,6 +278,7 @@ class LatticeLSTM(nn.Module):
 
 
 def init_list_of_objects(size):
+    """ 创建等长度的空嵌套列表 """
     list_of_objects = list()
     for i in range(0,size):
         list_of_objects.append( list() )
@@ -276,17 +286,21 @@ def init_list_of_objects(size):
 
 
 def convert_forward_gaz_to_backward(forward_gaz):
+    """ 将[gaz_id, gaz_length]结果按照seqlen维度反方向构造装填
+    不是！！简单的排序方向，而是原本的gaz词尾变成词头，因为逆序的时候gaz的结尾词才是实际的开头词
+    forward_gaz: (seq_len, 2 or 0, variable)
+    """
     # print forward_gaz
     length = len(forward_gaz)
     backward_gaz = init_list_of_objects(length)
     for idx in range(length):
         if forward_gaz[idx]:
-            assert(len(forward_gaz[idx])==2)
-            num = len(forward_gaz[idx][0])
+            assert(len(forward_gaz[idx])==2) # 长度为2 的就是对应word开头的gaz不为空
+            num = len(forward_gaz[idx][0]) # 取出word对应的gaz词的id集合
             for idy in range(num):
                 the_id = forward_gaz[idx][0][idy]
                 the_length = forward_gaz[idx][1][idy]
-                new_pos = idx+the_length -1
+                new_pos = idx+the_length -1 # 反向后的word对应输入顺序
                 if backward_gaz[new_pos]:
                     backward_gaz[new_pos][0].append(the_id)
                     backward_gaz[new_pos][1].append(the_length)
