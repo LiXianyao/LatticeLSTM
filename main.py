@@ -100,6 +100,13 @@ def recover_label(pred_variable, gold_variable, mask_variable, label_alphabet, w
 
 
 def save_data_setting(data, save_file):
+    """
+    保存 除了数据集以外的data数据， 即训练时使用的各种字母表，删去了输入文件的句子转id等内容
+    测试的时候直接读取这个pickle文件即可还原data结构
+    :param data:
+    :param save_file:
+    :return:
+    """
     new_data = copy.deepcopy(data)
     ## remove input instances
     new_data.train_texts = []
@@ -125,6 +132,7 @@ def load_data_setting(save_file):
     return data
 
 def lr_decay(optimizer, epoch, decay_rate, init_lr):
+    """ 每个Epoch减小一点学习率，考虑直接换掉？ """
     lr = init_lr * ((1-decay_rate)**epoch)
     print(" Learning rate is setted as:", lr)
     for param_group in optimizer.param_groups:
@@ -176,9 +184,9 @@ def evaluate(data, model, name):
 
 def batchify_with_label(input_batch_list, gpu, volatile_flag=False):
     """
-        input: list of words, chars and labels, various length. [[words,biwords,chars,gaz, labels],[words,biwords,chars,labels],...]
+        input: list of words, chars and labels' ID!!! various length. [[words,biwords,chars,gaz, labels],[words,biwords,chars,labels],...]
             words: word ids for one sentence. (batch_size, sent_len) 
-            chars: char ids for on sentences, various length. (batch_size, sent_len, each_word_length)
+            chars: char ids for one sentences, various word length. (batch_size, sent_len, each_word_length)
         output:
             zero padding for word and char, with their batch length
             word_seq_tensor: (batch_size, max_sent_len) Variable
@@ -190,43 +198,52 @@ def batchify_with_label(input_batch_list, gpu, volatile_flag=False):
             mask: (batch_size, max_sent_len) 
     """
     batch_size = len(input_batch_list)
-    words = [sent[0] for sent in input_batch_list]
-    biwords = [sent[1] for sent in input_batch_list]
-    chars = [sent[2] for sent in input_batch_list]
-    gazs = [sent[3] for sent in input_batch_list]
-    labels = [sent[4] for sent in input_batch_list]
-    word_seq_lengths = torch.LongTensor(map(len, words))
-    max_seq_len = word_seq_lengths.max()
+    """依次取出batch中每句话的 词、二元词、字和gaz的 ids"""
+    words = [sent[0] for sent in input_batch_list]  # batch_size * sen_word_num
+    biwords = [sent[1] for sent in input_batch_list]   # batch_size * sen_bi_word_num (sen_bi_word_num < sen_word_num)
+    chars = [sent[2] for sent in input_batch_list]  # batch_size * sen_word_num * word_char_num
+    gazs = [sent[3] for sent in input_batch_list]  # batch_size * sen_word_num * gaz_word_num
+    labels = [sent[4] for sent in input_batch_list]  # batch_size * sen_word_num
+    word_seq_lengths = torch.LongTensor(np.array(list(map(len, words)))) # batch_size * 1, 每句话的词数
+    max_seq_len = word_seq_lengths.max().data.numpy()  # 这一个batch中最大词数
+    """ 根据最大词数确定几个变量矩阵的维度，创建long形变量 (Variable写法现在已经放弃， volatile=False表示需要求导)"""
     word_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len)), volatile =  volatile_flag).long()
     biword_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len)), volatile =  volatile_flag).long()
     label_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len)),volatile =  volatile_flag).long()
     mask = autograd.Variable(torch.zeros((batch_size, max_seq_len)),volatile =  volatile_flag).byte()
     for idx, (seq, biseq, label, seqlen) in enumerate(zip(words, biwords, labels, word_seq_lengths)):
+        """ 将具体的id封装到变量矩阵中，等价于对长度不足的句子用了zero padding """
         word_seq_tensor[idx, :seqlen] = torch.LongTensor(seq)
         biword_seq_tensor[idx, :seqlen] = torch.LongTensor(biseq)
         label_seq_tensor[idx, :seqlen] = torch.LongTensor(label)
-        mask[idx, :seqlen] = torch.Tensor(torch.ones(seqlen))
+        mask[idx, :seqlen] = torch.Tensor(torch.ones(seqlen))  # ？ mask的作用？
+
+    """ 返回排序后的张量及对应的原下标张量, 使用下标张量对四个变量进行排序 """
     word_seq_lengths, word_perm_idx = word_seq_lengths.sort(0, descending=True)
     word_seq_tensor = word_seq_tensor[word_perm_idx]
     biword_seq_tensor = biword_seq_tensor[word_perm_idx]
     ## not reorder label
     label_seq_tensor = label_seq_tensor[word_perm_idx]
     mask = mask[word_perm_idx]
-    ### deal with char
-    # pad_chars (batch_size, max_seq_len)
-    pad_chars = [chars[idx] + [[0]] * (max_seq_len-len(chars[idx])) for idx in range(len(chars))]
-    length_list = [map(len, pad_char) for pad_char in pad_chars]
-    max_word_len = max(map(max, length_list))
+
+    """### deal with char"""
+    # pad_chars (batch_size, max_seq_len) 【这里的padding补上的是词数，还没到字】，每个元素都是一个词的字id向量[]
+    pad_chars = [chars[idx] + [[0]] * (max_seq_len - len(chars[idx])) for idx in range(len(chars))]
+    length_list = [list(map(len, pad_char)) for pad_char in pad_chars] # pad_char 是 word_num * word_char, 它的map(len)作用于每个word_char上，结果是 batch*max_seq_len
+    max_word_len = max(map(max, length_list))  # 对整个矩阵找最大值，即字数最大的词的字数
+    """ 达成目标：batch_size, max_seq_len, max_word_len """
     char_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len, max_word_len)), volatile =  volatile_flag).long()
-    char_seq_lengths = torch.LongTensor(length_list)
-    for idx, (seq, seqlen) in enumerate(zip(pad_chars, char_seq_lengths)):
-        for idy, (word, wordlen) in enumerate(zip(seq, seqlen)):
-            # print len(word), wordlen
-            char_seq_tensor[idx, idy, :wordlen] = torch.LongTensor(word)
-    char_seq_tensor = char_seq_tensor[word_perm_idx].view(batch_size*max_seq_len,-1)
+    char_seq_lengths = torch.LongTensor(length_list) # batch_size * max_seq_len
+    for idx, (seq, seq_len) in enumerate(zip(pad_chars, char_seq_lengths)):
+        for idy, (word, word_len) in enumerate(zip(seq, seq_len)):
+            # print len(word- 1*word_len 字id列表 ), word_len-标量
+            char_seq_tensor[idx, idy, :word_len] = torch.LongTensor(word)
+    """ !! 排序后，将字矩阵转为 2维 batch*max_seq_len , max_word_len """
+    char_seq_tensor = char_seq_tensor[word_perm_idx].view(batch_size * max_seq_len,-1)
     char_seq_lengths = char_seq_lengths[word_perm_idx].view(batch_size*max_seq_len,)
     char_seq_lengths, char_perm_idx = char_seq_lengths.sort(0, descending=True)
     char_seq_tensor = char_seq_tensor[char_perm_idx]
+    """ 下标再逆排序一次，得到的新下标可以直接用来找到原来的下标 """
     _, char_seq_recover = char_perm_idx.sort(0, descending=False)
     _, word_seq_recover = word_perm_idx.sort(0, descending=False)
     
@@ -243,6 +260,7 @@ def batchify_with_label(input_batch_list, gpu, volatile_flag=False):
         char_seq_tensor = char_seq_tensor.cuda()
         char_seq_recover = char_seq_recover.cuda()
         mask = mask.cuda()
+    """ 返回值依次是：（按句子词数排序）每句话的gaz词的id、词id、二元词id、词长记录、词id还原原顺序的下标记录，（再按字长排列）字id，字长，字还原记录 """
     return gaz_list, word_seq_tensor, biword_seq_tensor, word_seq_lengths, word_seq_recover, char_seq_tensor, char_seq_lengths, char_seq_recover, label_seq_tensor, mask
 
 
@@ -253,17 +271,17 @@ def train(data, save_model_dir, seg=True):
     save_data_setting(data, save_data_name)
     model = SeqModel(data)
     print("finished built model.")
-    loss_function = nn.NLLLoss()
-    parameters = filter(lambda p: p.requires_grad, model.parameters())
+    #loss_function = nn.NLLLoss()
+    parameters = filter(lambda p: p.requires_grad, model.parameters())  ## 设置autograd开始记录这些参数上的操作
     optimizer = optim.SGD(parameters, lr=data.HP_lr, momentum=data.HP_momentum)
     best_dev = -1
-    data.HP_iteration = 100
+    data.HP_iteration = 30
     ## start training
     for idx in range(data.HP_iteration):
         epoch_start = time.time()
         temp_start = epoch_start
         print("Epoch: %s/%s" %(idx,data.HP_iteration))
-        optimizer = lr_decay(optimizer, idx, data.HP_lr_decay, data.HP_lr)
+        optimizer = lr_decay(optimizer, idx, data.HP_lr_decay, data.HP_lr) # 每个Epoch减小一点学习率，考虑直接换掉？
         instance_count = 0
         sample_id = 0
         sample_loss = 0
@@ -273,7 +291,7 @@ def train(data, save_model_dir, seg=True):
         whole_token = 0
         random.shuffle(data.train_Ids)
         ## set model in train model
-        model.train()
+        model.train()  # 因为使用了nn.dropout，需要这样设置一下开启训练模式
         model.zero_grad()
         batch_size = 1 ## current only support batch size = 1 to compulate and accumulate to data.HP_batch_size update weights
         batch_id = 0
@@ -287,19 +305,23 @@ def train(data, save_model_dir, seg=True):
             instance = data.train_Ids[start:end]
             if not instance:
                 continue
+            """ 返回值依次是：（按句子词数排序）每句话的gaz词的id、词id、二元词id、词长记录、词id还原原顺序的下标记录（没用上），（再按字长排列）字id，字长，字还原记录 """
             gaz_list,  batch_word, batch_biword, batch_wordlen, batch_wordrecover, batch_char, batch_charlen, batch_charrecover, batch_label, mask  = batchify_with_label(instance, data.HP_gpu)
             # print("gaz_list:",gaz_list
             # exit(0)
-            instance_count += 1
+            instance_count += batch_size
+            """ 调用模型，计算得到损失和标记序列 """
             loss, tag_seq = model.neg_log_likelihood_loss(gaz_list, batch_word, batch_biword, batch_wordlen, batch_char, batch_charlen, batch_charrecover, batch_label, mask)
+            """ 检查标记序列的正确性，更改各项计数值 """
             right, whole = predict_check(tag_seq, batch_label, mask)
             right_token += right
             whole_token += whole
-            sample_loss += loss.data[0]
-            total_loss += loss.data[0]
-            batch_loss += loss
+            sample_loss += loss.data[0]  # 当前量样本的损失，每次输出后清空
+            total_loss += loss.data[0]  # 一个batch里的损失合
+            batch_loss += loss  # 一次需要做反向传播期间累积的损失（是损失对象，不是数值）
 
             if end%500 == 0:
+                """ 批训练每500次更新一个记录，清空sample_loss, acc= 正确数/总数 """
                 temp_time = time.time()
                 temp_cost = temp_time - temp_start
                 temp_start = temp_time
@@ -307,13 +329,18 @@ def train(data, save_model_dir, seg=True):
                 sys.stdout.flush()
                 sample_loss = 0
             if end%data.HP_batch_size == 0:
-                batch_loss.backward()
-                optimizer.step()
-                model.zero_grad()
-                batch_loss = 0
+                """ 使用损失计算、优化模型 """
+                batch_loss.backward() # 累积的损失做反向传播
+                optimizer.step()  # 调用优化器
+                model.zero_grad() # 清空零梯度
+                batch_loss = 0 # 重置损失
+
+        """ 1个Epoch 处理完毕后 """
+        ### 最后一部分（可能不足500的）batch的训练情况输出
         temp_time = time.time()
         temp_cost = temp_time - temp_start
         print("     Instance: %s; Time: %.2fs; loss: %.4f; acc: %s/%s=%.4f"%(end, temp_cost, sample_loss, right_token, whole_token,(right_token+0.)/whole_token))       
+        ## 一个Epoch的训练情况输出
         epoch_finish = time.time()
         epoch_cost = epoch_finish - epoch_start
         print("Epoch: %s training finished. Time: %.2fs, speed: %.2fst/s,  total loss: %s"%(idx, epoch_cost, train_num/epoch_cost, total_loss))
@@ -457,7 +484,6 @@ if __name__ == '__main__':
         data.build_word_pretrain_emb(char_emb)
         data.build_biword_pretrain_emb(bichar_emb)
         data.build_gaz_pretrain_emb(gaz_file)
-        exit(0)
         train(data, save_model_dir, seg)
     elif status == 'test':      
         data = load_data_setting(dset_dir)
