@@ -202,13 +202,8 @@ def batchify_with_label(input_batch_list, gpu, volatile_flag=False):
     words = [sent[0] for sent in input_batch_list]  # batch_size * sen_word_num
     biwords = [sent[1] for sent in input_batch_list]   # batch_size * sen_bi_word_num (sen_bi_word_num < sen_word_num)
     chars = [sent[2] for sent in input_batch_list]  # batch_size * sen_word_num * word_char_num
-    gazs = [sent[3] for sent in input_batch_list]  # batch_size * sen_word_num * gaz_word_num
+    gazs = [sent[3] for sent in input_batch_list]  # batch_size * sen_word_num * [0 or 2]
     labels = [sent[4] for sent in input_batch_list]  # batch_size * sen_word_num
-    print torch.LongTensor(words).shape
-    print torch.LongTensor(biwords).shape
-    print torch.LongTensor(chars).shape
-    print torch.LongTensor(labels).shape
-    print torch.LongTensor(gazs).shape
     word_seq_lengths = torch.LongTensor(np.array(list(map(len, words)))) # batch_size * 1, 每句话的词数
     max_seq_len = word_seq_lengths.max().data.numpy()  # 这一个batch中最大词数
     """ 根据最大词数确定几个变量矩阵的维度，创建long形变量 (Variable写法现在已经放弃， volatile=False表示需要求导)"""
@@ -252,10 +247,9 @@ def batchify_with_label(input_batch_list, gpu, volatile_flag=False):
     _, char_seq_recover = char_perm_idx.sort(0, descending=False)
     _, word_seq_recover = word_perm_idx.sort(0, descending=False)
     
-    ## keep the gaz_list in orignial order
-    # gaz size: (batch, seqlen, 2 ,variable)
-    gaz_list = [ gazs[i] for i in word_perm_idx]
-    gaz_list.append(volatile_flag)
+    ## keep the gaz_list in orignial order(对batch排序)
+    gaz_list = [ gazs[i] for i in word_perm_idx]# gaz size: (batch, seqlen, 2)
+    gaz_list.append(volatile_flag) # ！！！batch只能为1的原因。 batch维度不作用了。本来应该是多个batch，被他插入了一个flag
     if gpu:
         word_seq_tensor = word_seq_tensor.cuda()
         biword_seq_tensor = biword_seq_tensor.cuda()
@@ -266,11 +260,6 @@ def batchify_with_label(input_batch_list, gpu, volatile_flag=False):
         char_seq_recover = char_seq_recover.cuda()
         mask = mask.cuda()
     """ 返回值依次是：（按句子词数排序）每句话的gaz词的id、词id、二元词id、词长记录、词id还原原顺序的下标记录，（再按字长排列）字id，字长，字还原记录 """
-    print torch.LongTensor(word_seq_tensor).shape
-    print torch.LongTensor(biword_seq_tensor).shape
-    print torch.LongTensor(char_seq_tensor).shape
-    print torch.LongTensor(label_seq_tensor).shape
-    print torch.LongTensor(gaz_list).shape
     return gaz_list, word_seq_tensor, biword_seq_tensor, word_seq_lengths, word_seq_recover, char_seq_tensor, char_seq_lengths, char_seq_recover, label_seq_tensor, mask
 
 
