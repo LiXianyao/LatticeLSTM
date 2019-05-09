@@ -53,8 +53,8 @@ class Data:
         self.raw_Ids = []
         self.use_bigram = True # train: False
         self.word_emb_dim = 50 # 解析文件时修改
-        self.biword_emb_dim = 50 # 解析文件时修改 (就没有）
-        self.char_emb_dim = 30 # 解析文件时修改 （实际里把word当作了char，只提了word）
+        self.biword_emb_dim = 10 # 解析文件时修改 (就没有）
+        self.char_emb_dim = 10 # 解析文件时修改 （实际里把word当作了char，只提了word）
         self.gaz_emb_dim = 50 # 解析文件时修改
         self.gaz_dropout = 0.5
         self.pretrain_word_embedding = None # 解析文件时修改
@@ -75,7 +75,7 @@ class Data:
         self.HP_bilstm = True
         self.HP_use_char = False
         self.HP_gpu = False
-        self.HP_lr = 0.015
+        self.HP_lr = 0.075
         self.HP_lr_decay = 0.05
         self.HP_clip = 5.0
         self.HP_momentum = 0

@@ -205,7 +205,7 @@ def batchify_with_label(input_batch_list, gpu, volatile_flag=False):
     gazs = [sent[3] for sent in input_batch_list]  # batch_size * sen_word_num * [0 or 2]
     labels = [sent[4] for sent in input_batch_list]  # batch_size * sen_word_num
     word_seq_lengths = torch.LongTensor(np.array(list(map(len, words)))) # batch_size * 1, 每句话的词数
-    max_seq_len = word_seq_lengths.max().data.numpy()  # 这一个batch中最大词数
+    max_seq_len = word_seq_lengths.max() #.data.numpy()  # 这一个batch中最大词数
     """ 根据最大词数确定几个变量矩阵的维度，创建long形变量 (Variable写法现在已经放弃， volatile=False表示需要求导)"""
     word_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len)), volatile =  volatile_flag).long()
     biword_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len)), volatile =  volatile_flag).long()
@@ -272,16 +272,16 @@ def train(data, save_model_dir, seg=True):
     print("finished built model.")
     #loss_function = nn.NLLLoss()
     parameters = filter(lambda p: p.requires_grad, model.parameters())  ## 设置autograd开始记录这些参数上的操作
-    optimizer = optim.SGD(parameters, lr=data.HP_lr, momentum=data.HP_momentum)
-    #optimizer = optim.Adam(parameters, lr=data.HP_lr)
+    #optimizer = optim.SGD(parameters, lr=data.HP_lr, momentum=data.HP_momentum)
+    optimizer = optim.Adam(parameters, lr=data.HP_lr)
     best_dev = -1
-    data.HP_iteration = 30
+    data.HP_iteration = 100
     ## start training
     for idx in range(data.HP_iteration):
         epoch_start = time.time()
         temp_start = epoch_start
         print("Epoch: %s/%s" %(idx,data.HP_iteration))
-        optimizer = lr_decay(optimizer, idx, data.HP_lr_decay, data.HP_lr) # 每个Epoch减小一点学习率，考虑直接换掉？
+        #optimizer = lr_decay(optimizer, idx, data.HP_lr_decay, data.HP_lr) # 每个Epoch减小一点学习率，考虑直接换掉？
         instance_count = 0
         sample_id = 0
         sample_loss = 0
@@ -467,7 +467,7 @@ if __name__ == '__main__':
         data = Data()
         data.HP_gpu = gpu
         data.HP_use_char = False
-        data.HP_batch_size = 100
+        data.HP_batch_size = 50
         data.use_bigram = False
         data.gaz_dropout = 0.5
         data.norm_gaz_emb = False
