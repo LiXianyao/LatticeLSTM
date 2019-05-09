@@ -273,6 +273,7 @@ def train(data, save_model_dir, seg=True):
     #loss_function = nn.NLLLoss()
     parameters = filter(lambda p: p.requires_grad, model.parameters())  ## 设置autograd开始记录这些参数上的操作
     optimizer = optim.SGD(parameters, lr=data.HP_lr, momentum=data.HP_momentum)
+    #optimizer = optim.Adam(parameters, lr=data.HP_lr)
     best_dev = -1
     data.HP_iteration = 30
     ## start training
@@ -333,6 +334,11 @@ def train(data, save_model_dir, seg=True):
                 optimizer.step()  # 调用优化器
                 model.zero_grad() # 清空零梯度
                 batch_loss = 0 # 重置损失
+
+        """ 不对齐的部分 """
+        batch_loss.backward()  # 累积的损失做反向传播
+        optimizer.step()  # 调用优化器
+        model.zero_grad()  # 清空零梯度
 
         """ 1个Epoch 处理完毕后 """
         ### 最后一部分（可能不足500的）batch的训练情况输出
@@ -461,11 +467,11 @@ if __name__ == '__main__':
         data = Data()
         data.HP_gpu = gpu
         data.HP_use_char = False
-        data.HP_batch_size = 1
+        data.HP_batch_size = 100
         data.use_bigram = False
         data.gaz_dropout = 0.5
         data.norm_gaz_emb = False
-        data.HP_fix_gaz_emb = False
+        data.HP_fix_gaz_emb = False # 设置为False则不训练 gaz的embedding
         """调用函数data_initialization()，加载vec文件和训练、测试数据"""
         init_start = time.time()
         data_initialization(data, gaz_file, train_file, dev_file, test_file)
