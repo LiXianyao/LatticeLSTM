@@ -66,7 +66,7 @@ def read_instance(input_file, word_alphabet, char_alphabet, label_alphabet, numb
             label_Ids = []
     return instance_texts, instance_Ids
 
-
+"""
 def read_seg_instance(input_file, word_alphabet, biword_alphabet, char_alphabet, label_alphabet, number_normalized, max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
     in_lines = open(input_file,'r').readlines()
     instance_texts = []
@@ -126,9 +126,9 @@ def read_seg_instance(input_file, word_alphabet, biword_alphabet, char_alphabet,
             char_Ids = []
             label_Ids = []
     return instance_texts, instance_Ids
+"""
 
-
-def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char_alphabet, gaz_alphabet, label_alphabet, number_normalized, max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
+def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, use_bigram, char_alphabet, use_char, gaz_alphabet, label_alphabet, number_normalized, max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
     """
     遍历输入文件，抽取其中的词和标签，使用构造好的字母表获取对应的id下标，并封装到结构中
     :return:
@@ -147,42 +147,44 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
     for idx in xrange(len(in_lines)):
         line = in_lines[idx]
         if len(line) > 2:
+            """
+            重新遍历训练、dev和测试数据文件，将其中的词转化为id映射，并保存在相应的结构
+            """
             pairs = line.strip().split()
             word = pairs[0].lower().decode('utf-8')
             if number_normalized:
                 word = normalize_word(word)
             label = pairs[-1]
-            if idx < len(in_lines) -1 and len(in_lines[idx+1]) > 2:
-                biword = word + in_lines[idx+1].strip().lower().split()[0].decode('utf-8')
-            else:
-                biword = word + NULLKEY
-            """
-            重新遍历训练、dev和测试数据文件，将其中的词转化为id映射，并保存在相应的结构
-            """
-            biwords.append(biword)
+            if use_bigram:
+                if idx < len(in_lines) -1 and len(in_lines[idx+1]) > 2:
+                    biword = word + in_lines[idx+1].strip().lower().split()[0].decode('utf-8')
+                else:
+                    biword = word + NULLKEY
+                biwords.append(biword)
+                biword_Ids.append(biword_alphabet.get_index(biword))
             words.append(word)
             labels.append(label)
             word_Ids.append(word_alphabet.get_index(word))
-            biword_Ids.append(biword_alphabet.get_index(biword))
             label_Ids.append(label_alphabet.get_index(label))
 
             #词分字符，构造字符列表+id映射
-            char_list = []
-            char_Id = []
-            for char in word:
-                char_list.append(char)
-            if char_padding_size > 0:
-                char_number = len(char_list)
-                if char_number < char_padding_size:
-                    char_list = char_list + [char_padding_symbol]*(char_padding_size-char_number)
-                assert(len(char_list) == char_padding_size)
-            else:
-                ### not padding
-                pass
-            for char in char_list:
-                char_Id.append(char_alphabet.get_index(char))
-            chars.append(char_list)
-            char_Ids.append(char_Id)
+            if use_char:
+                char_list = []
+                char_Id = []
+                for char in word:
+                    char_list.append(char)
+                if char_padding_size > 0:
+                    char_number = len(char_list)
+                    if char_number < char_padding_size:
+                        char_list = char_list + [char_padding_symbol]*(char_padding_size-char_number)
+                    assert(len(char_list) == char_padding_size)
+                else:
+                    ### not padding
+                    pass
+                for char in char_list:
+                    char_Id.append(char_alphabet.get_index(char))
+                chars.append(char_list)
+                char_Ids.append(char_Id)
 
         else:  ##输入文件中， 句子与句子之间有一个空行
             ## 句子长度在最长句子长度范围限制内 （超过的就不用了，因为不好截断【会影响标注】）
@@ -234,7 +236,7 @@ def read_instance_with_gaz(input_file, gaz, word_alphabet, biword_alphabet, char
             gaz_Ids = []
     return instance_texts, instance_Ids
 
-
+"""
 def read_instance_with_gaz_in_sentence(input_file, gaz, word_alphabet, biword_alphabet, char_alphabet, gaz_alphabet, label_alphabet, number_normalized, max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
     in_lines = open(input_file,'r').readlines()
     instance_texts = []
@@ -292,7 +294,7 @@ def read_instance_with_gaz_in_sentence(input_file, gaz, word_alphabet, biword_al
         instance_texts.append([words, biwords, chars, gazs, label])
         instance_Ids.append([word_Ids, biword_Ids, char_Ids, gaz_Ids, label_Id])
     return instance_texts, instance_Ids
-
+"""
 
 def build_pretrain_embedding(embedding_path, word_alphabet, embedd_dim=100, norm=True):
     """

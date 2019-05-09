@@ -30,7 +30,7 @@ class Alphabet:
         # Index 0 is occupied by default, all else following.
         self.default_index = 0
         self.next_index = 1
-        if not self.label:
+        if not self.label:  #  对label字母表以外的字母表，插入</unk>
             self.add(self.UNKNOWN)
 
     def clear(self, keep_growing=True):

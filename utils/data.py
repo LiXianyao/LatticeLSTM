@@ -167,13 +167,15 @@ class Data:
                 self.word_alphabet.add(word)     # label和单词存入字母表
 
                 #二元字符信息：当前字和紧跟的下一个字（若有）
-                if idx < len(in_lines) - 1 and len(in_lines[idx+1]) > 2:
-                    biword = word + in_lines[idx+1].strip().split()[0].lower().decode('utf-8')
-                else:
-                    biword = word + NULLKEY
-                self.biword_alphabet.add(biword)
-                for char in word:  ##明明都只是字但还是按字符拆分？
-                    self.char_alphabet.add(char)
+                if self.use_bigram:
+                    if idx < len(in_lines) - 1 and len(in_lines[idx+1]) > 2:
+                        biword = word + in_lines[idx+1].strip().split()[0].lower().decode('utf-8')
+                    else:
+                        biword = word + NULLKEY
+                    self.biword_alphabet.add(biword)
+                if self.HP_use_char:
+                    for char in word:  ##明明都只是字但还是按字符拆分？
+                        self.char_alphabet.add(char)
         self.word_alphabet_size = self.word_alphabet.size()
         self.biword_alphabet_size = self.biword_alphabet.size()
         self.char_alphabet_size = self.char_alphabet.size()
@@ -263,7 +265,7 @@ class Data:
         print("build gaz pretrain emb...")
         self.pretrain_gaz_embedding, self.gaz_emb_dim = build_pretrain_embedding(emb_path, self.gaz_alphabet,  self.gaz_emb_dim, self.norm_gaz_emb)
 
-
+    """
     def generate_instance(self, input_file, name):
         self.fix_alphabet()
         if name == "train":
@@ -276,7 +278,7 @@ class Data:
             self.raw_texts, self.raw_Ids = read_seg_instance(input_file, self.word_alphabet, self.biword_alphabet, self.char_alphabet, self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
         else:
             print("Error: you can only generate train/dev/test instance! Illegal input:%s"%(name))
-
+    """
 
     def generate_instance_with_gaz(self, input_file, name):
         """
@@ -287,13 +289,13 @@ class Data:
         """
         self.fix_alphabet()
         if name == "train":
-            self.train_texts, self.train_Ids = read_instance_with_gaz(input_file, self.gaz, self.word_alphabet, self.biword_alphabet, self.char_alphabet, self.gaz_alphabet,  self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
+            self.train_texts, self.train_Ids = read_instance_with_gaz(input_file, self.gaz, self.word_alphabet, self.biword_alphabet, self.use_bigram, self.char_alphabet, self.HP_use_char, self.gaz_alphabet,  self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
         elif name == "dev":
-            self.dev_texts, self.dev_Ids = read_instance_with_gaz(input_file, self.gaz,self.word_alphabet, self.biword_alphabet, self.char_alphabet, self.gaz_alphabet,  self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
+            self.dev_texts, self.dev_Ids = read_instance_with_gaz(input_file, self.gaz,self.word_alphabet, self.biword_alphabet, self.use_bigram, self.char_alphabet, self.HP_use_char, self.gaz_alphabet,  self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
         elif name == "test":
-            self.test_texts, self.test_Ids = read_instance_with_gaz(input_file, self.gaz, self.word_alphabet, self.biword_alphabet, self.char_alphabet, self.gaz_alphabet,  self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
+            self.test_texts, self.test_Ids = read_instance_with_gaz(input_file, self.gaz, self.word_alphabet, self.biword_alphabet, self.use_bigram, self.char_alphabet, self.HP_use_char, self.gaz_alphabet,  self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
         elif name == "raw":
-            self.raw_texts, self.raw_Ids = read_instance_with_gaz(input_file, self.gaz, self.word_alphabet,self.biword_alphabet, self.char_alphabet, self.gaz_alphabet,  self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
+            self.raw_texts, self.raw_Ids = read_instance_with_gaz(input_file, self.gaz, self.word_alphabet,self.biword_alphabet, self.use_bigram, self.char_alphabet, self.HP_use_char, self.gaz_alphabet,  self.label_alphabet, self.number_normalized, self.MAX_SENTENCE_LENGTH)
         else:
             print("Error: you can only generate train/dev/test instance! Illegal input:%s"%(name))
 
