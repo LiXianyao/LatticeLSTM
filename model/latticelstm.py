@@ -83,11 +83,11 @@ class MultiInputLSTMCell(nn.Module):
         self.hidden_size = hidden_size
         self.use_bias = use_bias
         self.weight_ih = nn.Parameter(
-            torch.FloatTensor(input_size, 3 * hidden_size)) # 3个门限对输入的权重矩阵
+            torch.FloatTensor(input_size, 3 * hidden_size)) # 3个门限对输入的权重矩阵（两个输入，一个输出，遗忘门用1-i算）
         self.weight_hh = nn.Parameter(
             torch.FloatTensor(hidden_size, 3 * hidden_size)) # 3个门限对hi-1的权重矩阵
         self.alpha_weight_ih = nn.Parameter(
-            torch.FloatTensor(input_size, hidden_size)) # tanh 的权重矩阵？
+            torch.FloatTensor(input_size, hidden_size))  # 当存在skip word时候的加权矩阵，类似attention?
         self.alpha_weight_hh = nn.Parameter(
             torch.FloatTensor(hidden_size, hidden_size))
         if use_bias:
@@ -120,6 +120,7 @@ class MultiInputLSTMCell(nn.Module):
 
     def forward(self, input_, c_input, hx):
         """
+        每个timestep 的正向
         Args:
             batch = 1
             input_: A (batch, input_size) tensor containing input
@@ -135,20 +136,22 @@ class MultiInputLSTMCell(nn.Module):
         h_0, c_0 = hx
         batch_size = h_0.size(0)
         assert(batch_size == 1)
-        bias_batch = (self.bias.unsqueeze(0).expand(batch_size, *self.bias.size()))
-        wh_b = torch.addmm(bias_batch, h_0, self.weight_hh)
-        wi = torch.mm(input_, self.weight_ih)
-        i, o, g = torch.split(wh_b + wi, split_size=self.hidden_size, dim=1)
-        i = torch.sigmoid(i)
-        g = torch.tanh(g)
-        o = torch.sigmoid(o)
+        bias_batch = (self.bias.unsqueeze(0).expand(batch_size, *self.bias.size()))  # 根据batch的数量复制bias的量
+        # unsqueeze首先在bias矩阵最前面插入一个维度，对应batch_size
+        # expand再做复制填充，得到batch_size个bias，且其中一个改变后，其他的也会一起改变
+        wh_b = torch.addmm(bias_batch, h_0, self.weight_hh)  # 对三个矩阵做 b*mat + a(mat1 · mat2)的运算
+        wi = torch.mm(input_, self.weight_ih)  # 计算输入门的结果，不带bias
+        i, o, g = torch.split(wh_b + wi, split_size=self.hidden_size, dim=1)  # 输入的加权结果与hidden的结果按位相加，分别取出三个门限值
+        i = torch.sigmoid(i)  # 输入门对当前记忆的权重
+        g = torch.tanh(g)  # 输入门对当前知识的候选
+        o = torch.sigmoid(o)  # 输出门权重
         c_num = len(c_input)
-        if c_num == 0:
-            f = 1 - i
+        if c_num == 0:  # 没有skip word
+            f = 1 - i  # 遗忘门（自动变成按位减法）
             c_1 = f*c_0 + i*g
             h_1 = o * torch.tanh(c_1)
         else:
-            c_input_var = torch.cat(c_input, 0)
+            c_input_var = torch.cat(c_input, 0)  # 讲多个skip_word的 输入embedding在batch维度上拼接起来
             alpha_bias_batch = (self.alpha_bias.unsqueeze(0).expand(batch_size, *self.alpha_bias.size()))
             c_input_var = c_input_var.squeeze(1) ## (c_num, hidden_dim)
             alpha_wi = torch.addmm(self.alpha_bias, input_, self.alpha_weight_ih).expand(c_num, self.hidden_size)
@@ -217,7 +220,7 @@ class LatticeLSTM(nn.Module):
     def forward(self, input, skip_input_list, hidden=None):
         """
             input  (word embeddings ): variable (batch, seq_len), batch = 1
-            skip_input_list (gaz_list) : [skip_input, volatile_flag] (batch, seq_len, 2 or 0)
+            skip_input_list (gaz_list) : [skip_input, volatile_flag] (batch, 2, seq_len, 2 or 0)
             skip_input: three dimension list, with length is seq_len. Each element is a list of matched word id and its length. 
                         example: [[], [[25,13],[2,3]]] 25/13 is word id, 2,3 is word length . 
         """
@@ -231,7 +234,7 @@ class LatticeLSTM(nn.Module):
         assert(batch_size == 1)
         hidden_out = []
         memory_out = []
-        if hidden: # 有传入上一层的LSTM结果
+        if hidden: # 有传入 上一层 的LSTM结果
             (hx,cx)= hidden
         else:
             hx = autograd.Variable(torch.zeros(batch_size, self.hidden_dim))
@@ -243,11 +246,12 @@ class LatticeLSTM(nn.Module):
         id_list = range(seq_len)
         if not self.left2right: # 对word 序列，只是逆转seq_len即可
             id_list = list(reversed(id_list))
-        input_c_list = init_list_of_objects(seq_len)
+        input_c_list = init_list_of_objects(seq_len)  # 每个字要输入的skip word的cell state初始化 (和gaz不同，对应skip word最后一个字)
         for t in id_list:
             """ 首先经由普通lstm得到一份输出 """
             (hx,cx) = self.rnn(input[t], input_c_list[t], (hx,cx))
-            hidden_out.append(hx)
+            # 每个lstm单元输入 （char embedding, 这个字的input_c_list, 前一个时刻的输出状态）
+            hidden_out.append(hx)  # 记录每个时刻的输出
             memory_out.append(cx)
             """ 若当前字存在gaz word，则处理所有gaz词 """
             if skip_input[t]:
